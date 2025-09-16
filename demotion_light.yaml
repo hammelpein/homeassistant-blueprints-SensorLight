@@ -1,0 +1,156 @@
+blueprint:
+  name: Motion Activated Light
+  description: Turn on a light when motion is detected.
+  domain: automation
+  input:
+    motion_entity:
+      name: Motion Sensor
+      selector:
+        entity: {}
+    presence_entity:
+      name: Presence Sensor
+      selector:
+        entity: {}
+    timer_entity:
+      name: Timer Helper
+      selector:
+        entity: 
+          domain: timer
+    power_entity:
+      name: Sensor Power
+      selector:
+        entity: 
+          domain: switch
+    light_target:
+      name: Light
+      selector:
+        target:
+          entity:
+            domain: light
+    switch_target:
+      name: Switch
+      selector:
+        target:
+          entity:
+            domain: switch
+    no_motion_timer:
+      name: Turn off wait time (seconds)
+      description: Time in seconds to leave the target entity on after last motion
+        is detected. 
+      default:
+      selector:
+        entity:
+          domain: input_number
+
+
+# If motion is detected within the delay,
+# we restart the script.
+mode: parallel
+max_exceeded: silent
+
+variables:
+  no_motion_timer: !input 'no_motion_timer'
+
+trigger:
+- platform: state
+  entity_id: !input 'timer_entity'
+  to: idle
+  id: t_timer_finished
+- platform: state
+  entity_id: !input 'motion_entity'
+  to: 'on'
+  id: t_pir
+- platform: state
+  entity_id: !input 'presence_entity'
+  to: 'on''
+  id: t_presence_on
+- platform: state
+  entity_id: !input 'presence_entity'
+  to: 'off''
+  id: t_presence_off
+- platform: state
+  entity_id: !input 'timer_entity'
+  to: active
+  id: t_timer_started
+- platform: sun
+  event: sunrise
+  offset: '-5'
+  id: t_sunrise
+- platform: sun
+  event: sunset
+  offset: '5'
+  id: t_sunset
+condition: []
+action:
+- choose:
+  - conditions:
+    - condition: trigger
+      id: t_timer_finished
+    sequence:
+    - service: light.turn_off
+      target: !input 'light_target'
+    - service: switch.turn_off
+      target: !input 'switch_target'
+  - conditions:
+    - condition: trigger
+      id: t_timer_started
+    sequence:
+    - service: light.turn_on
+      target: !input 'light_target'
+    - service: switch.turn_on
+      target: !input 'switch_target'
+  - conditions:
+    - condition: trigger
+      id: t_sunrise
+    sequence:
+    - service: switch.turn_off
+      target:
+        entity_id: !input 'power_entity'
+  - conditions:
+    - condition: trigger
+      id: t_sunset
+    sequence:
+    - service: switch.turn_on
+      target:
+        entity_id: !input 'power_entity'
+  - conditions:
+    - condition: and
+      conditions:
+      - condition: or
+        conditions:
+        - condition: trigger
+          id: t_pir
+        - condition: trigger
+          id: t_presence_off
+      - condition: or
+        conditions:
+        - condition: sun
+          before: sunrise
+        - condition: sun
+          after: sunset
+    sequence:
+    - service: timer.start
+      data:
+        duration: '{{ states[no_motion_timer].state | int }}'
+      target:
+        entity_id: !input 'timer_entity'
+
+  - conditions:
+    - condition: and
+      conditions:
+      - condition: trigger
+        id: t_presence_on
+      - condition: or
+        conditions:
+        - condition: sun
+          before: sunrise
+        - condition: sun
+          after: sunset
+    sequence:
+      - service: light.turn_on
+        target: !input 'light_target'
+      - service: switch.turn_on
+        target: !input 'switch_target'
+
+  default: []
+
