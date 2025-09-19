@@ -7,10 +7,12 @@ blueprint:
       name: Motion Sensor
       selector:
         entity: {}
+      default: None
     presence_entity:
       name: Presence Sensor
       selector:
         entity: {}
+      default: None
     timer_entity:
       name: Timer Helper
       selector:
@@ -21,18 +23,21 @@ blueprint:
       selector:
         entity: 
           domain: switch
+      default: None
     light_target:
       name: Light
       selector:
         target:
           entity:
             domain: light
+      default: []
     switch_target:
       name: Switch
       selector:
         target:
           entity:
             domain: switch
+      default: []
     no_motion_timer:
       name: Turn off wait time (seconds)
       description: Time in seconds to leave the target entity on after last motion
@@ -64,6 +69,7 @@ trigger:
   entity_id: !input 'presence_entity'
   to: 'on'
   id: t_presence_on
+  default: []
 - platform: state
   entity_id: !input 'presence_entity'
   to: 'off'
